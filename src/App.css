@@ -24,8 +24,39 @@
   color: white;
 }
 
-.App-link {
+.App-text {
   color: #61dafb;
+}
+
+.App-title {
+  color: darkgreen;
+  margin-bottom: 30px;
+  font-weight: bolder;
+  font-size: xx-large;
+}
+
+.App-label {
+  color: white;
+  margin-right: 10px;
+  margin-bottom: 20px;
+  font-size: large;
+}
+
+.Image {
+  width: 80px;
+  height: 80px;
+}
+
+.form-item {
+  margin-bottom: 20px;
+}
+
+.thm-btn {
+	display: inline-block;
+	vertical-align: middle;	
+	color: blue;
+	font-size: large;
+	font-weight: bolder;
 }
 
 @keyframes App-logo-spin {
