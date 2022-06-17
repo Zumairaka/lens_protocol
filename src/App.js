@@ -4,13 +4,10 @@ import { urqlClient, fetchProfiles } from "./api";
 import ABI from "./abi.json";
 import { ethers } from "ethers";
 import { create } from "ipfs-http-client";
-import { Buffer } from 'buffer';
+import { Buffer } from "buffer";
 
 const address = "0x60Ae865ee4C725cd04353b5AAb364553f56ceF82";
 const client = create("https://ipfs.infura.io:5001/api/v0");
-let photo;
-let accounts;
-let url;
 
 function App() {
   // states
@@ -24,11 +21,11 @@ function App() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [profiles, setProfiles] = useState([]);
-  // const [url, setUrl] = useState("");
+  const [url, setUrl] = useState("");
   const [view, setView] = useState(false);
 
   // data destructuring
-  const { username, handle, profilePic, bio } = values;
+  const { username, handle, bio } = values;
 
   // call preload
   useEffect(() => {
@@ -48,44 +45,39 @@ function App() {
 
   const connect = async () => {
     if (window.ethereum) {
-      accounts = await window.ethereum.request({
+      const accounts = await window.ethereum.request({
         method: "eth_requestAccounts",
       });
-      console.log(accounts);
+      // console.log(accounts);
     } else {
       setError("install metamask extension..");
     }
-  }
+  };
 
   // creating profile and wallet connect
   const makeProfile = async () => {
     try {
-
+      await window.ethereum.send("eth_requestAccounts");
       const provider = new ethers.providers.Web3Provider(window.ethereum);
       const signer = provider.getSigner();
+      const address = await signer.getAddress();
 
-      console.log("provider: ", provider);
-      console.log("signer", signer);
-      console.log("url in", url);
       const contract = new ethers.Contract(address, ABI, signer);
-
       const zero_address = ethers.constants.AddressZero;
+      const to = address;
+      const imageURI = url;
+      const followModule = zero_address;
+      let followModuleData =
+        "0x22000000000000000000000000000000000000000000000000000000000000";
+      const followNFTURI = "";
 
-      const profileRequest = {
-        to: signer._address,
-        handle: handle,
-        imageURI: url,
-        followModule: "0x00",
-        followModuleData: "",
-        followNFTURI: "",
-      };
-      console.log("create data:", profileRequest);
-      const tx = await contract.connect(signer).createProfile(profileRequest);
+      const tx = await contract.createProfile(
+        (to, handle, imageURI, followModule, followModuleData, followNFTURI)
+      );
+      console.log("after");
       await tx.wait();
       console.log("tx", tx);
       console.log("created profile successfully");
-      console.log("accounts", accounts);
-
     } catch (err) {
       console.log(err);
     }
@@ -107,10 +99,10 @@ function App() {
   const successMessage = () => {
     return (
       <div
-        className="alert alert-success"
+        className="alert alert-success font"
         style={{ display: success ? "" : "none" }}
       >
-        Profile has been created successfully!
+        {success}
       </div>
     );
   };
@@ -120,21 +112,21 @@ function App() {
     setError(false);
     event.preventDefault();
 
-
     if (name === "profilePic") {
-      photo = event.target.files[0];
+      let photo = event.target.files[0];
       try {
         const reader = new window.FileReader();
         reader.readAsArrayBuffer(photo);
         reader.onloadend = async () => {
-          console.log("Buffer data", Buffer(reader.result));
+          // console.log("Buffer data", Buffer(reader.result));
           photo = Buffer(reader.result);
 
           // submit to ipfs
           const created = await client.add(photo);
           const ipfsUrl = `https://ipfs.infura.io/ipfs/${created.path}`;
-          url = ipfsUrl;
-          console.log("url", ipfsUrl);
+          setSuccess("Saved to ipfs proceed to submit");
+          setUrl(ipfsUrl);
+          // console.log("url", ipfsUrl);
         };
       } catch (err) {
         console.log(err.message);
@@ -143,43 +135,7 @@ function App() {
       const value = event.target.value;
       setValues({ ...values, [name]: value });
     }
-
-    // convert the file
-
   };
-
-  // on submit
-  // const onSubmit = async (event) => {
-  //   event.preventDefault();
-  //   setSuccess(false);
-  //   setError(false);
-  //   console.log("create data:", profileRequest);
-  //   await makeProfile()
-  //     .then((data) => {
-  //       console.log("data", data);
-  //       if (data.error) {
-  //         setError(data.error);
-  //         setSuccess(false);
-  //       } else {
-  //         setSuccess(true);
-  //         setValues({
-  //           ...values,
-  //           formData: "",
-  //           username: "",
-  //           bio: "",
-  //         });
-  //         setProfileRequest({
-  //           to: "",
-  //           handle: "",
-  //           imageURI: "",
-  //           followModule: "0x00",
-  //           followModuleData: "",
-  //           followNFTURI: "",
-  //         });
-  //       }
-  //     })
-  //     .catch(setError("profile creation failed"));
-  // };
 
   return (
     <div className="App">
@@ -209,10 +165,13 @@ function App() {
           </div>
         ))}
       </div>
+
+      <p className="App-text">Create a Profile</p>
+      <button className="thm-btn" onClick={connect}>
+        Connect Wallet
+      </button>
       {successMessage()}
       {errorMessage()}
-      <p className="App-text">Create a Profile</p>
-      <button className="thm-btn" onClick={connect}>Connect Wallet</button>
       <div>
         <label htmlFor="username" className="App-label">
           Name
@@ -230,7 +189,7 @@ function App() {
       </div>
       <div>
         <label htmlFor="handle" className="App-label">
-          Handle
+          Handle*
         </label>
         <input
           className="form-item"
