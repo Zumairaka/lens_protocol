@@ -31,11 +31,13 @@
 }
 
 .App-text {
-  color: #61dafb;
+  color: rgb(11, 230, 26);
+  font-weight: bolder;
+  font-size: x-large;
 }
 
 .App-title {
-  color: darkgreen;
+  color: rgb(11, 230, 26);
   margin-bottom: 30px;
   font-weight: bolder;
   font-size: xx-large;
@@ -63,6 +65,7 @@
 	color: blue;
 	font-size: large;
 	font-weight: bolder;
+  margin-bottom: 30px;
 }
 
 @keyframes App-logo-spin {

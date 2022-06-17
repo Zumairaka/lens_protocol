@@ -3,8 +3,14 @@ import React, { useState, useEffect } from "react";
 import { urqlClient, fetchProfiles } from "./api";
 import ABI from "./abi.json";
 import { ethers } from "ethers";
+import { create } from "ipfs-http-client";
+import { Buffer } from 'buffer';
 
 const address = "0x60Ae865ee4C725cd04353b5AAb364553f56ceF82";
+const client = create("https://ipfs.infura.io:5001/api/v0");
+let photo;
+let accounts;
+let url;
 
 function App() {
   // states
@@ -18,6 +24,8 @@ function App() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [profiles, setProfiles] = useState([]);
+  // const [url, setUrl] = useState("");
+  const [view, setView] = useState(false);
 
   // data destructuring
   const { username, handle, profilePic, bio } = values;
@@ -38,45 +46,46 @@ function App() {
     }
   };
 
-  // wallet connect
   const connect = async () => {
-    const accounts = await window.ethereum.request({
-      method: "eth_requestAccounts",
-    });
-    console.log("accounts", accounts);
-  };
+    if (window.ethereum) {
+      accounts = await window.ethereum.request({
+        method: "eth_requestAccounts",
+      });
+      console.log(accounts);
+    } else {
+      setError("install metamask extension..");
+    }
+  }
 
-  // creating profile
+  // creating profile and wallet connect
   const makeProfile = async () => {
     try {
-      const accounts = await window.ethereum.enable();
+
       const provider = new ethers.providers.Web3Provider(window.ethereum);
-
-      console.log("provider: ", provider);
-
       const signer = provider.getSigner();
 
+      console.log("provider: ", provider);
       console.log("signer", signer);
-
+      console.log("url in", url);
       const contract = new ethers.Contract(address, ABI, signer);
+
       const zero_address = ethers.constants.AddressZero;
 
-      // create profile object
       const profileRequest = {
-        to: signer,
+        to: signer._address,
         handle: handle,
-        imageURI: "",
-        followModule: zero_address,
+        imageURI: url,
+        followModule: "0x00",
         followModuleData: "",
         followNFTURI: "",
       };
-
       console.log("create data:", profileRequest);
-
-      const tx = await contract.createProfile(profileRequest);
+      const tx = await contract.connect(signer).createProfile(profileRequest);
       await tx.wait();
       console.log("tx", tx);
       console.log("created profile successfully");
+      console.log("accounts", accounts);
+
     } catch (err) {
       console.log(err);
     }
@@ -106,12 +115,37 @@ function App() {
     );
   };
 
-  // handle change
-  const handleChange = (name) => (event) => {
+  // handle change function
+  const handleChange = (name) => async (event) => {
     setError(false);
-    const value =
-      name === "profilePic" ? event.target.files[0] : event.target.value;
-    setValues({ ...values, [name]: value });
+    event.preventDefault();
+
+
+    if (name === "profilePic") {
+      photo = event.target.files[0];
+      try {
+        const reader = new window.FileReader();
+        reader.readAsArrayBuffer(photo);
+        reader.onloadend = async () => {
+          console.log("Buffer data", Buffer(reader.result));
+          photo = Buffer(reader.result);
+
+          // submit to ipfs
+          const created = await client.add(photo);
+          const ipfsUrl = `https://ipfs.infura.io/ipfs/${created.path}`;
+          url = ipfsUrl;
+          console.log("url", ipfsUrl);
+        };
+      } catch (err) {
+        console.log(err.message);
+      }
+    } else {
+      const value = event.target.value;
+      setValues({ ...values, [name]: value });
+    }
+
+    // convert the file
+
   };
 
   // on submit
@@ -150,10 +184,6 @@ function App() {
   return (
     <div className="App">
       <p className="App-title">Lets Connect</p>
-      <button className="thm-btn" onClick={connect}>
-        Connect
-      </button>
-
       <div>
         <h2 className="Profile">Recommended Profiles</h2>
         {profiles.map((profile, index) => (
@@ -182,6 +212,7 @@ function App() {
       {successMessage()}
       {errorMessage()}
       <p className="App-text">Create a Profile</p>
+      <button className="thm-btn" onClick={connect}>Connect Wallet</button>
       <div>
         <label htmlFor="username" className="App-label">
           Name
@@ -197,7 +228,6 @@ function App() {
           value={username}
         />
       </div>
-
       <div>
         <label htmlFor="handle" className="App-label">
           Handle
@@ -213,7 +243,6 @@ function App() {
           value={handle}
         />
       </div>
-
       <div>
         <label htmlFor="bio" className="App-label">
           Bio
@@ -228,7 +257,6 @@ function App() {
           value={bio}
         />
       </div>
-
       <div>
         <label htmlFor="profilePic" className="App-label">
           Profile pic
@@ -244,12 +272,9 @@ function App() {
           onChange={handleChange("profilePic")}
         />
       </div>
-
-      <div>
-        <button className="thm-btn" onClick={makeProfile}>
-          Submit
-        </button>
-      </div>
+      <button className="thm-btn" onClick={makeProfile}>
+        Submit
+      </button>
     </div>
   );
 }
